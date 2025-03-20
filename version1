@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Salary Breakdown Tool</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .container { max-width: 500px; margin: auto; }
+        input, button { margin: 5px 0; padding: 10px; width: 100%; }
+        table { width: 100%; margin-top: 20px; border-collapse: collapse; }
+        th, td { padding: 10px; border: 1px solid #ddd; text-align: left; }
+        th { background-color: #f4f4f4; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h2>Salary Breakdown Tool</h2>
+    <label for="salary">Enter Your Salary:</label>
+    <input type="number" id="salary" placeholder="Enter salary" oninput="updateRemainingSalary()">
+
+    <h3>Add Expense Category</h3>
+    <input type="text" id="expenseName" placeholder="Expense name">
+    <input type="number" id="expensePercentage" placeholder="Percentage" oninput="validatePercentage()">
+    <button onclick="addExpense()">Add Expense</button>
+
+    <h3>Expense Breakdown</h3>
+    <table>
+        <thead>
+            <tr>
+                <th>Category</th>
+                <th>Percentage</th>
+                <th>Amount</th>
+            </tr>
+        </thead>
+        <tbody id="expenseTable"></tbody>
+    </table>
+
+    <h3>Remaining Salary: ₹<span id="remainingSalary">0</span></h3>
+</div>
+
+<script>
+    let expenses = {};
+
+    function updateRemainingSalary() {
+        let salary = parseFloat(document.getElementById('salary').value) || 0;
+        let totalExpensePercentage = Object.values(expenses).reduce((a, b) => a + b, 0);
+        let remaining = salary * (1 - totalExpensePercentage / 100);
+        document.getElementById('remainingSalary').innerText = remaining.toFixed(2);
+    }
+
+    function validatePercentage() {
+        let percentage = parseFloat(document.getElementById('expensePercentage').value) || 0;
+        let totalExpensePercentage = Object.values(expenses).reduce((a, b) => a + b, 0) + percentage;
+        
+        if (totalExpensePercentage > 100) {
+            alert("Total percentage cannot exceed 100%");
+            document.getElementById('expensePercentage').value = "";
+        }
+    }
+
+    function addExpense() {
+        let name = document.getElementById('expenseName').value.trim();
+        let percentage = parseFloat(document.getElementById('expensePercentage').value);
+
+        if (!name || isNaN(percentage) || percentage <= 0) {
+            alert("Enter a valid expense name and percentage.");
+            return;
+        }
+
+        if (expenses[name]) {
+            alert("Expense category already exists!");
+            return;
+        }
+
+        expenses[name] = percentage;
+        updateExpenseTable();
+        updateRemainingSalary();
+
+        document.getElementById('expenseName').value = "";
+        document.getElementById('expensePercentage').value = "";
+    }
+
+    function updateExpenseTable() {
+        let salary = parseFloat(document.getElementById('salary').value) || 0;
+        let tableBody = document.getElementById('expenseTable');
+        tableBody.innerHTML = "";
+
+        for (let [name, percent] of Object.entries(expenses)) {
+            let row = `<tr>
+                <td>${name}</td>
+                <td>${percent}%</td>
+                <td>₹${((salary * percent) / 100).toFixed(2)}</td>
+            </tr>`;
+            tableBody.innerHTML += row;
+        }
+    }
+</script>
+
+</body>
+</html>
