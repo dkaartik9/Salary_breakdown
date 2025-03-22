@@ -5,24 +5,40 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Salary Breakdown Tool</title>
     <style>
-        body { font-family: Arial, sans-serif; margin: 20px; }
-        .container { max-width: 500px; margin: auto; }
-        input, button { margin: 5px 0; padding: 10px; width: 100%; }
+        body { font-family: Arial, sans-serif; margin: 20px; text-align: center; }
+        .container { max-width: 500px; margin: auto; text-align: left; }
+        input, button, select { margin: 5px 0; padding: 10px; width: 100%; }
         table { width: 100%; margin-top: 20px; border-collapse: collapse; }
         th, td { padding: 10px; border: 1px solid #ddd; text-align: left; }
         th { background-color: #f4f4f4; }
+        .delete-btn { color: red; cursor: pointer; }
+        img { width: 100%; max-width: 400px; margin-bottom: 15px; }
     </style>
 </head>
 <body>
 
 <div class="container">
+    <!-- 🖼️ Illustration -->
+    <img src="https://i.imgur.com/T0O1YVr.png" alt="Salary Breakdown Illustration">
+
     <h2>Salary Breakdown Tool</h2>
+    
+    <!-- 🔢 Salary Input -->
     <label for="salary">Enter Your Salary:</label>
-    <input type="number" id="salary" placeholder="Enter salary" oninput="updateRemainingSalary()">
+    <input type="number" id="salary" placeholder="Enter salary">
+
+    <!-- 📊 Budget Template Dropdown -->
+    <h3>Select a Budget Template</h3>
+    <select id="budgetTemplate" onchange="applyTemplate()">
+        <option value="">-- Select a template --</option>
+        <option value="50-30-20">50/30/20 Budget</option>
+        <option value="70-20-10">70/20/10 Rule</option>
+        <option value="custom">Custom Budget</option>
+    </select>
 
     <h3>Add Expense Category</h3>
     <input type="text" id="expenseName" placeholder="Expense name">
-    <input type="number" id="expensePercentage" placeholder="Percentage" oninput="validatePercentage()">
+    <input type="number" id="expensePercentage" placeholder="Percentage">
     <button onclick="addExpense()">Add Expense</button>
 
     <h3>Expense Breakdown</h3>
@@ -32,32 +48,45 @@
                 <th>Category</th>
                 <th>Percentage</th>
                 <th>Amount</th>
+                <th>Action</th>
             </tr>
         </thead>
         <tbody id="expenseTable"></tbody>
     </table>
 
     <h3>Remaining Salary: ₹<span id="remainingSalary">0</span></h3>
+    <button onclick="exportCSV()">Download CSV</button>
 </div>
 
 <script>
     let expenses = {};
+
+    function saveData() {
+        localStorage.setItem("salary", document.getElementById("salary").value);
+        localStorage.setItem("expenses", JSON.stringify(expenses));
+    }
+
+    function loadData() {
+        let savedSalary = localStorage.getItem("salary");
+        let savedExpenses = localStorage.getItem("expenses");
+
+        if (savedSalary) {
+            document.getElementById("salary").value = savedSalary;
+        }
+        if (savedExpenses) {
+            expenses = JSON.parse(savedExpenses);
+        }
+
+        updateRemainingSalary();
+        updateExpenseTable();
+    }
 
     function updateRemainingSalary() {
         let salary = parseFloat(document.getElementById('salary').value) || 0;
         let totalExpensePercentage = Object.values(expenses).reduce((a, b) => a + b, 0);
         let remaining = salary * (1 - totalExpensePercentage / 100);
         document.getElementById('remainingSalary').innerText = remaining.toFixed(2);
-    }
-
-    function validatePercentage() {
-        let percentage = parseFloat(document.getElementById('expensePercentage').value) || 0;
-        let totalExpensePercentage = Object.values(expenses).reduce((a, b) => a + b, 0) + percentage;
-        
-        if (totalExpensePercentage > 100) {
-            alert("Total percentage cannot exceed 100%");
-            document.getElementById('expensePercentage').value = "";
-        }
+        saveData();
     }
 
     function addExpense() {
@@ -74,12 +103,24 @@
             return;
         }
 
+        let totalExpensePercentage = Object.values(expenses).reduce((a, b) => a + b, 0) + percentage;
+        if (totalExpensePercentage > 100) {
+            alert("Total percentage cannot exceed 100%.");
+            return;
+        }
+
         expenses[name] = percentage;
         updateExpenseTable();
         updateRemainingSalary();
 
         document.getElementById('expenseName').value = "";
         document.getElementById('expensePercentage').value = "";
+    }
+
+    function deleteExpense(name) {
+        delete expenses[name];
+        updateExpenseTable();
+        updateRemainingSalary();
     }
 
     function updateExpenseTable() {
@@ -92,10 +133,47 @@
                 <td>${name}</td>
                 <td>${percent}%</td>
                 <td>₹${((salary * percent) / 100).toFixed(2)}</td>
+                <td><span class="delete-btn" onclick="deleteExpense('${name}')">❌</span></td>
             </tr>`;
             tableBody.innerHTML += row;
         }
+        saveData();
     }
+
+    function applyTemplate() {
+        let template = document.getElementById("budgetTemplate").value;
+        expenses = {};
+
+        if (template === "50-30-20") {
+            expenses = { "Needs": 50, "Wants": 30, "Savings": 20 };
+        } else if (template === "70-20-10") {
+            expenses = { "Essentials": 70, "Savings": 20, "Fun": 10 };
+        }
+
+        updateExpenseTable();
+        updateRemainingSalary();
+    }
+
+    function exportCSV() {
+        let csvContent = "Category,Percentage,Amount\n";
+        let salary = parseFloat(document.getElementById('salary').value) || 0;
+
+        for (let [name, percent] of Object.entries(expenses)) {
+            csvContent += `${name},${percent},${((salary * percent) / 100).toFixed(2)}\n`;
+        }
+
+        let remainingSalary = salary * (1 - Object.values(expenses).reduce((a, b) => a + b, 0) / 100);
+        csvContent += `Remaining Salary,,${remainingSalary.toFixed(2)}\n`;
+
+        let blob = new Blob([csvContent], { type: 'text/csv' });
+        let link = document.createElement("a");
+        link.href = URL.createObjectURL(blob);
+        link.download = "salary_breakdown.csv";
+        link.click();
+    }
+
+    document.getElementById("salary").addEventListener("input", updateRemainingSalary);
+    window.onload = loadData;
 </script>
 
 </body>
